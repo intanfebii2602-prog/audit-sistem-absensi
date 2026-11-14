@@ -1,216 +1,156 @@
 
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
+import requests
+from datetime import datetime
 
 # =====================================
-# 1. KONFIGURASI HALAMAN
+# KONFIGURASI
 # =====================================
+
+URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbx7_sn1mFjf0B6lwRtigkNKpyCtbng8Rvajg6gKEisfkeru45Siz1F_kt8BWIwQmkGtEA/exec"
 
 st.set_page_config(
-    page_title="Audit Sistem Absensi",
-    page_icon="📊",
+    page_title="Form Audit Sistem Absensi",
+    page_icon="📋",
     layout="wide"
 )
 
 # =====================================
-# 2. JUDUL APLIKASI
+# DATA PERTANYAAN AUDIT
 # =====================================
 
-st.title("📊 Dashboard Audit Sistem Informasi Absensi")
+pertanyaan = [
+    ("EDM", "EDM01", "Apakah manajemen menetapkan kebijakan tata kelola yang mencakup penggunaan sistem absensi, serta mengevaluasinya secara berkala?"),
+    ("EDM", "EDM01", "Apakah peran dan kewenangan persetujuan atas koreksi data kehadiran, perubahan jadwal shift, dan persetujuan lembur, cuti, dan izin telah ditetapkan secara tertulis?"),
+    ("EDM", "EDM02", "Apakah manajemen mengevaluasi manfaat sistem terhadap tujuan perusahaan, misalnya akurasi data kehadiran, berkurangnya kecurangan absensi, dan efisiensi rekap oleh HRD?"),
+    ("EDM", "EDM03", "Apakah manajemen menetapkan batas risiko yang dapat diterima terkait kesalahan data kehadiran, manipulasi absensi, dan kebocoran data pribadi dan biometrik karyawan?"),
+    ("EDM", "EDM04", "Apakah tersedia sumber daya yang memadai (staf HRD dan TI, perangkat absensi, anggaran lisensi dan pemeliharaan) untuk mengelola sistem?"),
+    ("EDM", "EDM05", "Apakah laporan kehadiran, keterlambatan, lembur, dan ketidakhadiran disampaikan secara berkala kepada direksi, dan apakah aturan penilaian kehadiran dapat dijelaskan secara transparan kepada karyawan?"),
+
+    ("APO", "APO01", "Apakah perusahaan memiliki SOP tertulis untuk absensi, lembur, cuti, izin, dan koreksi kehadiran, termasuk ketentuan batas waktu penutupan periode (cut-off)?"),
+    ("APO", "APO01", "Apakah SOP tersebut telah disosialisasikan kepada HRD, supervisor lini, dan karyawan yang berkepentingan?"),
+    ("APO", "APO06", "Apakah kebutuhan pengelolaan sistem (lisensi, pemeliharaan, perangkat absensi) dimuat dalam rencana kerja dan anggaran, serta realisasinya dipantau?"),
+    ("APO", "APO07", "Apakah staf HRD dan administrator sistem absensi memperoleh pelatihan yang sesuai, dan apakah tersedia pengganti ketika petugas berhalangan?"),
+    ("APO", "APO12", "Apakah risiko seperti titip absen, data karyawan tidak aktif yang masih tercatat, dan kesalahan rekap lembur telah diidentifikasi dan didokumentasikan?"),
+    ("APO", "APO13", "Apakah terdapat kebijakan tertulis mengenai keamanan informasi dan pelindungan data pribadi karyawan, termasuk data biometrik?"),
+
+    ("BAI", "BAI02", "Apakah kebutuhan pengguna (HRD, Produksi, Payroll) dan ketentuan jam kerja (jadwal shift, toleransi keterlambatan, lembur, cuti) diidentifikasi dan didokumentasikan sebagai aturan sistem?"),
+    ("BAI", "BAI03", "Apakah aturan shift, toleransi keterlambatan, dan perhitungan jam kerja pada sistem divalidasi, misalnya dengan mencocokkan hasil rekap sistem dengan catatan manual pada sampel karyawan, sebelum digunakan?"),
+    ("BAI", "BAI06", "Apakah setiap perubahan konfigurasi (aturan jam kerja, jadwal shift, hak akses perangkat) diajukan, disetujui secara tertulis oleh pihak berwenang, dan tercatat dalam log perubahan?"),
+    ("BAI", "BAI07", "Apakah perubahan atau versi baru sistem diuji dan diterima oleh pengguna sebelum dipakai pada periode kehadiran berjalan, serta hasil pengujiannya didokumentasikan?"),
+    ("BAI", "BAI08", "Apakah tersedia panduan atau dokumentasi kerja sistem yang dapat diakses oleh petugas yang membutuhkan?"),
+    ("BAI", "BAI09", "Apakah perusahaan memiliki daftar aset pendukung (mesin absensi, server, lisensi aplikasi) beserta penanggung jawab dan memperbaruinya secara berkala?"),
+
+    ("DSS", "DSS01", "Apakah kegiatan rutin absensi (pencatatan harian, rekap kehadiran, koreksi, penutupan periode) dilaksanakan sesuai prosedur dan jadwal yang ditetapkan?"),
+    ("DSS", "DSS02", "Apakah gangguan (mesin absensi rusak, kegagalan sinkronisasi data) dan keluhan karyawan atas catatan kehadirannya dicatat dan diselesaikan melalui prosedur yang jelas?"),
+    ("DSS", "DSS03", "Apakah penyebab gangguan atau kesalahan yang berulang dianalisis dan ditindaklanjuti agar tidak terulang?"),
+    ("DSS", "DSS04", "Apakah data absensi dicadangkan secara berkala, dan apakah prosedur pemulihan data pernah diuji?"),
+    ("DSS", "DSS05", "Apakah akses ke sistem dibatasi berdasarkan peran, memakai akun individual dan kata sandi yang terkelola, serta akun karyawan yang keluar atau pindah tugas segera dinonaktifkan?"),
+    ("DSS", "DSS06", "Apakah terdapat pemisahan tugas antara pihak yang mengelola data induk karyawan, melakukan koreksi kehadiran, dan menyetujui koreksi, serta rekonsiliasi data absensi dengan data karyawan aktif?"),
+
+    ("MEA", "MEA01", "Apakah perusahaan menetapkan indikator kinerja proses, misalnya tingkat kehadiran, jumlah koreksi manual, ketepatan rekap, dan waktu penyelesaian koreksi, serta memantaunya secara berkala?"),
+    ("MEA", "MEA01", "Apakah capaian tingkat kehadiran dan jam lembur dibandingkan dengan target atau batas kebijakan, dan penyimpangannya dianalisis serta dilaporkan kepada manajemen?"),
+    ("MEA", "MEA02", "Apakah dilakukan pemeriksaan berkala atas kesesuaian data mesin absensi, data induk karyawan, dan data lembur dan cuti, termasuk verifikasi keberadaan fisik karyawan pada sampel?"),
+    ("MEA", "MEA02", "Apakah terdapat audit internal atau fungsi sejenis yang menilai pengendalian pada proses absensi?"),
+    ("MEA", "MEA02", "Apakah kelemahan pengendalian yang ditemukan dari pemeriksaan internal maupun eksternal ditindaklanjuti dan statusnya dipantau?"),
+    ("MEA", "MEA03", "Apakah perusahaan memantau kepatuhan terhadap ketentuan eksternal, misalnya ketentuan ketenagakerjaan (jam kerja, lembur, cuti) serta pelindungan data pribadi?")
+]
+
+# =====================================
+# HEADER APLIKASI
+# =====================================
+
+st.title("📋 Formulir Audit Sistem Informasi Absensi")
 st.subheader("PT Karya Busana Muria")
 st.caption("Audit Sistem Informasi menggunakan Kerangka Kerja COBIT 5")
 
 st.info(
-    "Hasil penilaian berdasarkan skenario studi kasus hipotetis."
+    "Formulir ini merupakan simulasi akademik berdasarkan perusahaan "
+    "fiktif PT Karya Busana Muria. Jawaban responden digunakan untuk "
+    "keperluan pembelajaran dan tidak menggambarkan hasil audit nyata."
 )
 
-# =====================================
-# 3. MEMBACA DATA EXCEL
-# =====================================
-
-df = pd.read_excel(
-    "Hasil_Audit_Sistem_Absensi.xlsx",
-    sheet_name="Data Audit"
+st.markdown("### Petunjuk Pengisian")
+st.write(
+    "Baca setiap pertanyaan dan pilih jawaban berdasarkan informasi "
+    "skenario studi kasus yang diberikan dalam tugas."
 )
+st.write("- Ya: pengendalian diterapkan dan didukung informasi dalam skenario.")
+st.write("- Tidak: pengendalian tidak diterapkan atau tidak didukung informasi dalam skenario.")
+st.write("- N/A: pertanyaan tidak relevan dengan kondisi objek simulasi.")
+
+st.divider()
 
 # =====================================
-# 4. MENGHITUNG HASIL AUDIT
+# FORMULIR RESPONDEN
 # =====================================
 
-total_pertanyaan = len(df)
-total_ya = (df["Jawaban"] == "Ya").sum()
-total_tidak = (df["Jawaban"] == "Tidak").sum()
-total_na = (df["Jawaban"] == "N/A").sum()
+with st.form("form_audit"):
+    st.markdown("### Identitas Responden")
+    nama = st.text_input("Nama responden (opsional)")
 
-persentase = (
-    total_ya / (total_pertanyaan - total_na)
-) * 100
+    jawaban = []
 
-# =====================================
-# 5. RINGKASAN HASIL AUDIT
-# =====================================
+    domain_sebelumnya = ""
 
-st.header("Ringkasan Hasil Penilaian Audit")
+    for nomor, (domain, kode, teks) in enumerate(pertanyaan, start=1):
 
-kolom1, kolom2, kolom3, kolom4 = st.columns(4)
+        if domain != domain_sebelumnya:
+            st.markdown(f"### Domain {domain}")
+            domain_sebelumnya = domain
 
-kolom1.metric("Total Pertanyaan", total_pertanyaan)
-kolom2.metric("Jawaban Ya", total_ya)
-kolom3.metric("Jawaban Tidak", total_tidak)
-kolom4.metric("Kepatuhan", f"{persentase:.2f}%")
+        st.markdown(f"**{nomor}. {kode}**")
+        st.write(teks)
 
-# =====================================
-# 6. REKAPITULASI PER DOMAIN COBIT 5
-# =====================================
+        pilihan = st.selectbox(
+            "Pilih jawaban",
+            ["Pilih jawaban", "Ya", "Tidak", "N/A"],
+            key=f"jawaban_{nomor}"
+        )
 
-st.header("Rekapitulasi Hasil Audit per Domain")
+        jawaban.append(pilihan)
+        st.divider()
 
-rekap = pd.crosstab(
-    df["Domain"],
-    df["Jawaban"]
-)
-
-for jawaban in ["Ya", "Tidak", "N/A"]:
-    if jawaban not in rekap.columns:
-        rekap[jawaban] = 0
-
-rekap = rekap[["Ya", "Tidak", "N/A"]]
-
-urutan = ["APO", "BAI", "DSS", "EDM", "MEA"]
-rekap = rekap.reindex(urutan, fill_value=0)
-
-rekap["Total Pertanyaan"] = (
-    rekap["Ya"] + rekap["Tidak"] + rekap["N/A"]
-)
-
-rekap["Persentase Kepatuhan"] = (
-    rekap["Ya"] /
-    (rekap["Total Pertanyaan"] - rekap["N/A"])
-) * 100
-
-rekap_tampil = rekap.copy()
-
-rekap_tampil["Persentase Kepatuhan"] = (
-    rekap_tampil["Persentase Kepatuhan"]
-    .map(lambda x: f"{x:.2f}%")
-)
-
-st.dataframe(
-    rekap_tampil,
-    use_container_width=True
-)
-
-# =====================================
-# 7. GRAFIK KEPATUHAN
-# =====================================
-
-st.header("Grafik Persentase Kepatuhan")
-
-fig, ax = plt.subplots(figsize=(10, 5))
-
-ax.bar(
-    rekap.index,
-    rekap["Persentase Kepatuhan"]
-)
-
-ax.set_xlabel("Domain COBIT 5")
-ax.set_ylabel("Persentase Kepatuhan (%)")
-ax.set_ylim(0, 100)
-
-ax.set_title(
-    "Persentase Kepatuhan Audit per Domain"
-)
-
-for i, nilai in enumerate(
-    rekap["Persentase Kepatuhan"]
-):
-    ax.text(
-        i,
-        nilai + 2,
-        f"{nilai:.2f}%",
-        ha="center"
+    dikirim = st.form_submit_button(
+        "Kirim Jawaban Audit",
+        use_container_width=True
     )
 
-ax.grid(
-    axis="y",
-    linestyle="--",
-    alpha=0.5
-)
-
-st.pyplot(fig)
-
 # =====================================
-# 8. DAFTAR TEMUAN AUDIT
+# PROSES PENGIRIMAN
 # =====================================
 
-st.header("Identifikasi Temuan Audit")
+if dikirim:
+    if "Pilih jawaban" in jawaban:
+        st.error("Masih ada pertanyaan yang belum dijawab.")
+    else:
+        data_kirim = {
+            "nama": nama.strip() if nama.strip() else "Anonim",
+            "jawaban": jawaban
+        }
 
-temuan = df[df["Jawaban"] == "Tidak"].copy()
+        try:
+            with st.spinner("Mengirim jawaban ke Google Sheets..."):
+                hasil = requests.post(
+                    URL_APPS_SCRIPT,
+                    json=data_kirim,
+                    timeout=30
+                )
 
-st.write(f"Jumlah temuan audit: {len(temuan)}")
+            if hasil.status_code == 200:
+                try:
+                    hasil_json = hasil.json()
+                except Exception:
+                    hasil_json = {}
 
-st.dataframe(
-    temuan[
-        [
-            "Domain",
-            "Kode Proses",
-            "Pertanyaan Audit",
-            "Catatan Auditor"
-        ]
-    ],
-    use_container_width=True
-)
+                if hasil_json.get("status") == "success":
+                    st.success("Jawaban berhasil dikirim dan disimpan!")
+                else:
+                    st.error("Jawaban belum dapat dipastikan tersimpan.")
+                    st.write(hasil.text)
+            else:
+                st.error(f"Pengiriman gagal. Kode: {hasil.status_code}")
 
-# =====================================
-# 9. RISIKO DAN REKOMENDASI
-# =====================================
-
-st.header("Risiko dan Rekomendasi Perbaikan")
-
-df_temuan = pd.read_excel(
-    "Hasil_Audit_Sistem_Absensi.xlsx",
-    sheet_name="Temuan Audit"
-)
-
-st.dataframe(
-    df_temuan[
-        [
-            "Domain",
-            "Kode Proses",
-            "Risiko",
-            "Rekomendasi"
-        ]
-    ],
-    use_container_width=True
-)
-
-# =====================================
-# 10. KESIMPULAN
-# =====================================
-
-st.header("Kesimpulan Penilaian Audit")
-
-st.write(
-    f"Berdasarkan {total_pertanyaan} pertanyaan audit, "
-    f"terdapat {total_ya} jawaban Ya dan "
-    f"{total_tidak} jawaban Tidak."
-)
-
-st.write(
-    f"Persentase kepatuhan berdasarkan skenario studi kasus "
-    f"adalah {persentase:.2f}%."
-)
-
-if persentase >= 80:
-    st.success("Kategori penilaian: Baik")
-elif persentase >= 60:
-    st.info("Kategori penilaian: Cukup")
-else:
-    st.warning("Kategori penilaian: Perlu Perbaikan")
-
-st.caption(
-    "Catatan: Data merupakan skenario studi kasus hipotetis "
-    "dan bukan hasil audit lapangan."
-)
-
+        except Exception as e:
+            st.error(f"Terjadi kesalahan saat mengirim jawaban: {e}")
