@@ -76,6 +76,7 @@ st.write(
     "Baca setiap pertanyaan dan pilih jawaban berdasarkan informasi "
     "skenario studi kasus yang diberikan dalam tugas."
 )
+
 st.write("- Ya: pengendalian diterapkan dan didukung informasi dalam skenario.")
 st.write("- Tidak: pengendalian tidak diterapkan atau tidak didukung informasi dalam skenario.")
 st.write("- N/A: pertanyaan tidak relevan dengan kondisi objek simulasi.")
@@ -91,7 +92,6 @@ with st.form("form_audit"):
     nama = st.text_input("Nama responden (opsional)")
 
     jawaban = []
-
     domain_sebelumnya = ""
 
     for nomor, (domain, kode, teks) in enumerate(pertanyaan, start=1):
@@ -124,6 +124,7 @@ with st.form("form_audit"):
 if dikirim:
     if "Pilih jawaban" in jawaban:
         st.error("Masih ada pertanyaan yang belum dijawab.")
+
     else:
         data_kirim = {
             "nama": nama.strip() if nama.strip() else "Anonim",
@@ -149,11 +150,13 @@ if dikirim:
                 else:
                     st.error("Jawaban belum dapat dipastikan tersimpan.")
                     st.write(hasil.text)
+
             else:
                 st.error(f"Pengiriman gagal. Kode: {hasil.status_code}")
 
         except Exception as e:
             st.error(f"Terjadi kesalahan saat mengirim jawaban: {e}")
+
 # =====================================
 # DASHBOARD HASIL RESPONDEN
 # =====================================
@@ -172,6 +175,10 @@ try:
 
         if rows:
             df_responden = pd.DataFrame(rows, columns=headers)
+
+            # Nomor urut responden dimulai dari 1
+            df_responden.index = range(1, len(df_responden) + 1)
+            df_responden.index.name = "No"
 
             kolom_jawaban = [
                 kolom for kolom in headers
