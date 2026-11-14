@@ -8,7 +8,7 @@ from datetime import datetime
 # KONFIGURASI
 # =====================================
 
-URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbx7_sn1mFjf0B6lwRtigkNKpyCtbng8Rvajg6gKEisfkeru45Siz1F_kt8BWIwQmkGtEA/exec"
+URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbwspcBN9nBRCITZCeI9maCjPfhRjR3L1zRYmoxg_d3OeVcAlXDt-LmIyfQ9keLN0NBhrQ/exec"
 
 st.set_page_config(
     page_title="Form Audit Sistem Absensi",
