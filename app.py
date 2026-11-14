@@ -2,7 +2,7 @@
 import streamlit as st
 import pandas as pd
 import requests
-from datetime import datetime
+import altair as alt
 
 # =====================================
 # KONFIGURASI
@@ -72,6 +72,7 @@ st.info(
 )
 
 st.markdown("### Petunjuk Pengisian")
+
 st.write(
     "Baca setiap pertanyaan dan pilih jawaban berdasarkan informasi "
     "skenario studi kasus yang diberikan dalam tugas."
@@ -88,6 +89,7 @@ st.divider()
 # =====================================
 
 with st.form("form_audit"):
+
     st.markdown("### Identitas Responden")
     nama = st.text_input("Nama responden (opsional)")
 
@@ -122,17 +124,21 @@ with st.form("form_audit"):
 # =====================================
 
 if dikirim:
+
     if "Pilih jawaban" in jawaban:
         st.error("Masih ada pertanyaan yang belum dijawab.")
 
     else:
+
         data_kirim = {
             "nama": nama.strip() if nama.strip() else "Anonim",
             "jawaban": jawaban
         }
 
         try:
+
             with st.spinner("Mengirim jawaban ke Google Sheets..."):
+
                 hasil = requests.post(
                     URL_APPS_SCRIPT,
                     json=data_kirim,
@@ -140,6 +146,7 @@ if dikirim:
                 )
 
             if hasil.status_code == 200:
+
                 try:
                     hasil_json = hasil.json()
                 except Exception:
@@ -165,57 +172,116 @@ st.divider()
 st.title("📊 Dashboard Hasil Audit Sistem Absensi")
 
 try:
-    response = requests.get(URL_APPS_SCRIPT, timeout=30)
+
+    response = requests.get(
+        URL_APPS_SCRIPT,
+        timeout=30
+    )
+
     response.raise_for_status()
     hasil_data = response.json()
 
     if hasil_data.get("status") == "success":
+
         headers = hasil_data.get("headers", [])
         rows = hasil_data.get("rows", [])
 
         if rows:
-            df_responden = pd.DataFrame(rows, columns=headers)
 
-            # Nomor urut responden dimulai dari 1
-            df_responden.index = range(1, len(df_responden) + 1)
+            df_responden = pd.DataFrame(
+                rows,
+                columns=headers
+            )
+
+            # Nomor urut tabel responden dimulai dari 1
+            df_responden.index = range(
+                1,
+                len(df_responden) + 1
+            )
+
             df_responden.index.name = "No"
 
             kolom_jawaban = [
                 kolom for kolom in headers
-                if kolom.startswith(("EDM", "APO", "BAI", "DSS", "MEA"))
+                if kolom.startswith(
+                    ("EDM", "APO", "BAI", "DSS", "MEA")
+                )
             ]
 
             if kolom_jawaban:
+
+                # =====================================
+                # RINGKASAN JAWABAN
+                # =====================================
+
                 st.subheader("Ringkasan Jawaban")
 
-                semua_jawaban = df_responden[kolom_jawaban].values.flatten()
+                semua_jawaban = (
+                    df_responden[kolom_jawaban]
+                    .values.flatten()
+                )
+
                 jumlah_ya = sum(semua_jawaban == "Ya")
                 jumlah_tidak = sum(semua_jawaban == "Tidak")
                 jumlah_na = sum(semua_jawaban == "N/A")
 
                 c1, c2, c3, c4 = st.columns(4)
-                c1.metric("Total Responden", len(df_responden))
-                c2.metric("Jawaban Ya", int(jumlah_ya))
-                c3.metric("Jawaban Tidak", int(jumlah_tidak))
-                c4.metric("Jawaban N/A", int(jumlah_na))
+
+                c1.metric(
+                    "Total Responden",
+                    len(df_responden)
+                )
+
+                c2.metric(
+                    "Jawaban Ya",
+                    int(jumlah_ya)
+                )
+
+                c3.metric(
+                    "Jawaban Tidak",
+                    int(jumlah_tidak)
+                )
+
+                c4.metric(
+                    "Jawaban N/A",
+                    int(jumlah_na)
+                )
+
+                # =====================================
+                # TABEL JAWABAN RESPONDEN
+                # =====================================
 
                 st.subheader("Tabel Jawaban Responden")
-                st.dataframe(df_responden, use_container_width=True)
+
+                st.dataframe(
+                    df_responden,
+                    use_container_width=True
+                )
+
+                # =====================================
+                # REKAPITULASI DOMAIN
+                # =====================================
 
                 rekap = []
 
                 for domain in ["EDM", "APO", "BAI", "DSS", "MEA"]:
+
                     kolom_domain = [
                         kolom for kolom in kolom_jawaban
                         if kolom.startswith(domain)
                     ]
 
-                    nilai = df_responden[kolom_domain].values.flatten()
+                    nilai = (
+                        df_responden[kolom_domain]
+                        .values.flatten()
+                    )
+
                     ya = int(sum(nilai == "Ya"))
                     tidak = int(sum(nilai == "Tidak"))
                     na = int(sum(nilai == "N/A"))
 
                     total_valid = ya + tidak
+
                     persentase = (
                         ya / total_valid * 100
                         if total_valid > 0 else 0
@@ -226,29 +292,150 @@ try:
                         "Ya": ya,
                         "Tidak": tidak,
                         "N/A": na,
-                        "Persentase Ya (%)": round(persentase, 2)
+                        "Persentase Ya (%)": round(
+                            persentase,
+                            2
+                        )
                     })
 
                 df_rekap = pd.DataFrame(rekap)
 
-                st.subheader("Rekapitulasi per Domain COBIT 5")
-                st.dataframe(df_rekap, use_container_width=True)
-
-                st.subheader("Grafik Jawaban")
-                st.bar_chart(
-                    df_rekap.set_index("Domain")[["Ya", "Tidak", "N/A"]]
+                # Nomor urut tabel rekapitulasi dimulai dari 1
+                df_rekap.index = range(
+                    1,
+                    len(df_rekap) + 1
                 )
 
+                df_rekap.index.name = "No"
+
+                st.subheader("Rekapitulasi per Domain COBIT 5")
+
+                st.dataframe(
+                    df_rekap,
+                    use_container_width=True
+                )
+
+                # =====================================
+                # GRAFIK JAWABAN
+                # =====================================
+
+                st.subheader("Grafik Jawaban")
+
+                grafik_jawaban = df_rekap.melt(
+                    id_vars="Domain",
+                    value_vars=["Ya", "Tidak", "N/A"],
+                    var_name="Jawaban",
+                    value_name="Jumlah"
+                )
+
+                maks_jawaban = int(
+                    grafik_jawaban.groupby("Domain")["Jumlah"]
+                    .sum()
+                    .max()
+                )
+
+                chart_jawaban = (
+                    alt.Chart(grafik_jawaban)
+                    .mark_bar()
+                    .encode(
+                        x=alt.X(
+                            "Domain:N",
+                            title="Domain COBIT 5",
+                            sort=["EDM", "APO", "BAI", "DSS", "MEA"]
+                        ),
+                        y=alt.Y(
+                            "Jumlah:Q",
+                            title="Jumlah Jawaban",
+                            stack="zero",
+                            scale=alt.Scale(
+                                domain=[0, maks_jawaban],
+                                nice=False
+                            ),
+                            axis=alt.Axis(
+                                tickMinStep=1,
+                                format="d"
+                            )
+                        ),
+                        color=alt.Color(
+                            "Jawaban:N",
+                            title="Kategori Jawaban",
+                            scale=alt.Scale(
+                                domain=["Ya", "Tidak", "N/A"],
+                                range=[
+                                    "#FF3030",
+                                    "#80C4F8",
+                                    "#0066CC"
+                                ]
+                            )
+                        ),
+                        tooltip=[
+                            "Domain",
+                            "Jawaban",
+                            "Jumlah"
+                        ]
+                    )
+                    .properties(height=400)
+                )
+
+                st.altair_chart(
+                    chart_jawaban,
+                    use_container_width=True
+                )
+
+                # =====================================
+                # GRAFIK PERSENTASE PER DOMAIN
+                # =====================================
+
                 st.subheader("Grafik Persentase per Domain")
-                st.bar_chart(
-                    df_rekap.set_index("Domain")[["Persentase Ya (%)"]]
+
+                grafik_persentase = df_rekap[
+                    ["Domain", "Persentase Ya (%)"]
+                ]
+
+                chart_persentase = (
+                    alt.Chart(grafik_persentase)
+                    .mark_bar(color="#0066CC")
+                    .encode(
+                        x=alt.X(
+                            "Domain:N",
+                            title="Domain COBIT 5",
+                            sort=["EDM", "APO", "BAI", "DSS", "MEA"]
+                        ),
+                        y=alt.Y(
+                            "Persentase Ya (%):Q",
+                            title="Persentase Ya (%)",
+                            scale=alt.Scale(
+                                domain=[0, 100],
+                                nice=False
+                            ),
+                            axis=alt.Axis(
+                                tickMinStep=20,
+                                format=".0f"
+                            )
+                        ),
+                        tooltip=[
+                            "Domain",
+                            "Persentase Ya (%)"
+                        ]
+                    )
+                    .properties(height=400)
+                )
+
+                st.altair_chart(
+                    chart_persentase,
+                    use_container_width=True
                 )
 
         else:
+
             st.info("Belum ada jawaban responden.")
 
     else:
+
         st.error("Data Google Sheets belum berhasil dibaca.")
 
 except Exception as e:
-    st.error(f"Gagal mengambil data Google Sheets: {e}")
+
+    st.error(
+        f"Gagal mengambil data Google Sheets: {e}"
+    )
